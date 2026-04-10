@@ -405,26 +405,29 @@ export default function EditorPage() {
       // Try to load existing portfolio
       const { data: portfolio } = await sb
         .from("portfolios")
-        .select("id, subdomain, content, theme")
+        .select("id, subdomain")
         .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .limit(1)
         .single();
 
       if (portfolio) {
         setPortfolioId(portfolio.id);
         setSubdomain(portfolio.subdomain);
 
-        // Load latest version content (prefer version content over portfolio content)
+        // Load latest version content
         const { data: version } = await sb
           .from("portfolio_versions")
-          .select("content, theme")
+          .select("content, theme_id")
           .eq("portfolio_id", portfolio.id)
           .order("created_at", { ascending: false })
           .limit(1)
           .single();
 
-        const src = version ?? portfolio;
-        if (src.content) setContent(src.content as PortfolioContent);
-        if (src.theme) setTheme(src.theme as ThemeId);
+        if (version) {
+          if (version.content) setContent(version.content as PortfolioContent);
+          if (version.theme_id) setTheme(version.theme_id as ThemeId);
+        }
         return true;
       }
 
@@ -448,28 +451,28 @@ export default function EditorPage() {
           const sb = getSupabase();
           const { data: { user } } = await sb.auth.getUser();
           if (user) {
+            // Ensure users row exists
+            await sb.from("users").upsert(
+              { id: user.id, email: user.email!, display_name: user.user_metadata?.full_name || user.email },
+              { onConflict: "id" }
+            );
+
+            const draftSubdomain = localStorage.getItem("cc_draft_subdomain") || parsed.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 20);
+
             const { data: portfolio } = await sb
               .from("portfolios")
-              .upsert(
-                {
-                  user_id: user.id,
-                  name: parsed.name,
-                  content: parsed,
-                  theme: "minimal",
-                  updated_at: new Date().toISOString(),
-                },
-                { onConflict: "user_id" },
-              )
+              .insert({ user_id: user.id, name: parsed.name, subdomain: draftSubdomain })
               .select("id, subdomain")
               .single();
 
             if (portfolio) {
               setPortfolioId(portfolio.id);
               setSubdomain(portfolio.subdomain);
+              localStorage.removeItem("cc_draft_subdomain");
               await sb.from("portfolio_versions").insert({
                 portfolio_id: portfolio.id,
                 content: parsed,
-                theme: "minimal",
+                theme_id: "minimal",
                 status: "draft",
               });
             }
@@ -512,33 +515,49 @@ export default function EditorPage() {
       }
 
       try {
-        // Upsert portfolio row
-        const { data: portfolio, error: pErr } = await sb
-          .from("portfolios")
-          .upsert(
-            {
-              user_id: user.id,
-              name: nextContent.name,
-              content: nextContent,
-              theme: nextTheme,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" },
-          )
-          .select("id, subdomain")
-          .single();
+        // Get or create portfolio
+        let pid = portfolioId;
+        if (!pid) {
+          // Ensure users row
+          await sb.from("users").upsert(
+            { id: user.id, email: user.email!, display_name: user.user_metadata?.full_name || user.email },
+            { onConflict: "id" }
+          );
 
-        if (pErr || !portfolio) throw pErr;
+          const { data: existing } = await sb
+            .from("portfolios")
+            .select("id, subdomain")
+            .eq("user_id", user.id)
+            .is("deleted_at", null)
+            .limit(1)
+            .single();
 
-        setPortfolioId(portfolio.id);
-        setSubdomain(portfolio.subdomain);
+          if (existing) {
+            pid = existing.id;
+            setPortfolioId(pid);
+            setSubdomain(existing.subdomain);
+          } else {
+            const slug = nextContent.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 20);
+            const { data: newP } = await sb
+              .from("portfolios")
+              .insert({ user_id: user.id, name: nextContent.name, subdomain: slug })
+              .select("id, subdomain")
+              .single();
+            if (!newP) throw new Error("Failed to create portfolio");
+            pid = newP.id;
+            setPortfolioId(pid);
+            setSubdomain(newP.subdomain);
+          }
+        } else {
+          // Update name
+          await sb.from("portfolios").update({ name: nextContent.name }).eq("id", pid);
+        }
 
-        // Upsert a draft version (latest draft row for this portfolio)
-        // Try to update existing draft first
+        // Upsert draft version
         const { data: existingDraft } = await sb
           .from("portfolio_versions")
           .select("id")
-          .eq("portfolio_id", portfolio.id)
+          .eq("portfolio_id", pid)
           .eq("status", "draft")
           .order("created_at", { ascending: false })
           .limit(1)
@@ -547,13 +566,13 @@ export default function EditorPage() {
         if (existingDraft) {
           await sb
             .from("portfolio_versions")
-            .update({ content: nextContent, theme: nextTheme })
+            .update({ content: nextContent, theme_id: nextTheme })
             .eq("id", existingDraft.id);
         } else {
           await sb.from("portfolio_versions").insert({
-            portfolio_id: portfolio.id,
+            portfolio_id: pid,
             content: nextContent,
-            theme: nextTheme,
+            theme_id: nextTheme,
             status: "draft",
           });
         }
