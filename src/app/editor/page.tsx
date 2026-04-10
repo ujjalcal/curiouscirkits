@@ -674,17 +674,17 @@ export default function EditorPage() {
         <div className="flex h-10 shrink-0 items-center justify-center gap-3 bg-green-50 text-sm text-green-800">
           <span>Published!</span>
           <a
-            href={`https://${publishedUrl}`}
+            href={publishedUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium underline"
           >
-            {publishedUrl}
+            {window.location.origin}{publishedUrl}
           </a>
           <button
             type="button"
             onClick={() => {
-              navigator.clipboard.writeText(`https://${publishedUrl}`);
+              navigator.clipboard.writeText(`${window.location.origin}${publishedUrl}`);
             }}
             className="rounded border border-green-300 bg-white px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-100"
           >
