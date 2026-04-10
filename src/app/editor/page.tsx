@@ -514,11 +514,7 @@ export default function EditorPage() {
         // Get or create portfolio
         let pid = portfolioId;
         if (!pid) {
-          // Ensure users row
-          await sb.from("users").upsert(
-            { id: user.id, email: user.email!, display_name: user.user_metadata?.full_name || user.email },
-            { onConflict: "id" }
-          );
+          // users row created by auth callback (server-side)
 
           const { data: existing } = await sb
             .from("portfolios")
