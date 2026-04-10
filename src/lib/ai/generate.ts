@@ -63,7 +63,6 @@ async function generateWithHuggingFace(prompt: string): Promise<PortfolioContent
     system: SYSTEM_PROMPT + "\n\nOutput ONLY valid JSON. No markdown fences. No explanation.",
     prompt,
     temperature: 0.7,
-    maxTokens: 2048,
   });
   return parseAndValidate(text);
 }
