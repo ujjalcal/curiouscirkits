@@ -57,10 +57,22 @@ async function generateWithGemini(prompt: string): Promise<PortfolioContent> {
   return object;
 }
 
+const HF_STRICT_PROMPT = `Output ONLY valid JSON matching this EXACT structure. No markdown. No explanation.
+
+EXACT section type values (use these EXACTLY, lowercase):
+- "hero" (with "heading" and "subheading" fields)
+- "about" (with "body" field)
+- "projects" (with "items" array, each having "title" and "description")
+- "skills" (with "items" array of strings)
+- "contact" (with optional "email" and "links" object)
+
+Example:
+{"name":"Jane","tagline":"Short tagline","sections":[{"type":"hero","heading":"Jane","subheading":"Engineer"},{"type":"about","body":"I build..."},{"type":"projects","items":[{"title":"App","description":"Does X"}]},{"type":"skills","items":["Python","React"]},{"type":"contact","links":{"github":"url"}}]}`;
+
 async function generateWithHuggingFace(prompt: string): Promise<PortfolioContent> {
   const { text } = await generateText({
     model: huggingface("Qwen/Qwen2.5-72B-Instruct"),
-    system: SYSTEM_PROMPT + "\n\nOutput ONLY valid JSON. No markdown fences. No explanation.",
+    system: SYSTEM_PROMPT + "\n\n" + HF_STRICT_PROMPT,
     prompt,
     temperature: 0.7,
   });
