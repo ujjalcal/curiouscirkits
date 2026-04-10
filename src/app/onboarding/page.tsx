@@ -70,36 +70,49 @@ export default function OnboardingPage() {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.slice(6));
-            if (line.includes("event: status") || buffer.includes("status")) {
-              setStreamStatus(data.message || "Working...");
+        // SSE format: "event: <type>\ndata: <json>\n\n"
+        // Split on double newline to get complete events
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || ""; // last chunk may be incomplete
+
+        for (const event of events) {
+          if (!event.trim()) continue;
+
+          const lines = event.split("\n");
+          let eventType = "";
+          let eventData = "";
+
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              eventData = line.slice(6);
             }
           }
-          if (line.startsWith("event: content")) {
-            // Next line is the data
-          }
-          if (line.startsWith("data: ") && !line.includes('"message"')) {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              if (parsed.name && parsed.sections) {
-                setContent(parsed);
-                setStreamStatus("");
-                // Auto-suggest subdomain from name
-                const suggested = (parsed.name as string)
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]/g, "")
-                  .slice(0, 20);
-                setSubdomain(suggested);
-                setSubdomainStatus("available");
-              }
-            } catch {
-              // not content JSON, skip
+
+          if (!eventData) continue;
+
+          try {
+            const parsed = JSON.parse(eventData);
+
+            if (eventType === "status") {
+              setStreamStatus(parsed.message || "Working...");
+            } else if (eventType === "content") {
+              setContent(parsed);
+              setStreamStatus("");
+              const suggested = (parsed.name as string)
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "")
+                .slice(0, 20);
+              setSubdomain(suggested);
+              setSubdomainStatus("available");
+            } else if (eventType === "error") {
+              throw new Error(parsed.message || "Generation failed");
             }
+          } catch (e) {
+            if (e instanceof SyntaxError) continue; // malformed JSON, skip
+            throw e;
           }
         }
       }
@@ -241,24 +254,71 @@ export default function OnboardingPage() {
               </div>
             )}
             {content && (
-              <>
-                <div className="mb-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Name</p>
-                  <p className="text-[15px]">{content.name}</p>
+              <div className="space-y-5">
+                {/* Name + tagline */}
+                <div>
+                  <h3 className="text-[24px] font-bold tracking-[-0.5px]">{content.name}</h3>
+                  {content.tagline && (
+                    <p className="mt-1 text-[15px] text-muted">{content.tagline}</p>
+                  )}
                 </div>
-                {content.tagline && (
-                  <div className="mb-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Tagline</p>
-                    <p className="text-[15px]">{content.tagline}</p>
-                  </div>
-                )}
-                <div className="mb-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Sections</p>
-                  <p className="text-[15px] text-muted">
-                    {content.sections.map((s) => s.type).join(", ")}
-                  </p>
-                </div>
-              </>
+
+                {/* Render each section */}
+                {content.sections.map((section, i) => {
+                  if (section.type === "hero") return (
+                    <div key={i} className="rounded-xl bg-white p-4 border border-border-light">
+                      <p className="text-[10px] font-semibold uppercase tracking-[1.5px] text-subtle mb-2">Hero</p>
+                      <p className="text-[17px] font-semibold">{section.heading}</p>
+                      {section.subheading && <p className="text-[14px] text-muted mt-1">{section.subheading}</p>}
+                    </div>
+                  );
+                  if (section.type === "about") return (
+                    <div key={i} className="rounded-xl bg-white p-4 border border-border-light">
+                      <p className="text-[10px] font-semibold uppercase tracking-[1.5px] text-subtle mb-2">About</p>
+                      <p className="text-[14px] leading-relaxed text-muted">{section.body}</p>
+                    </div>
+                  );
+                  if (section.type === "projects") return (
+                    <div key={i} className="rounded-xl bg-white p-4 border border-border-light">
+                      <p className="text-[10px] font-semibold uppercase tracking-[1.5px] text-subtle mb-2">Projects</p>
+                      <div className="space-y-2">
+                        {section.items.map((proj, j) => (
+                          <div key={j} className="flex gap-2">
+                            <span className="text-[14px] font-medium shrink-0">{proj.title}</span>
+                            <span className="text-[13px] text-muted">{proj.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                  if (section.type === "skills") return (
+                    <div key={i} className="rounded-xl bg-white p-4 border border-border-light">
+                      <p className="text-[10px] font-semibold uppercase tracking-[1.5px] text-subtle mb-2">Skills</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {section.items.map((skill, j) => (
+                          <span key={j} className="rounded-full bg-surface px-2.5 py-0.5 text-[12px] font-medium text-muted">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                  if (section.type === "contact") return (
+                    <div key={i} className="rounded-xl bg-white p-4 border border-border-light">
+                      <p className="text-[10px] font-semibold uppercase tracking-[1.5px] text-subtle mb-2">Contact</p>
+                      {section.email && <p className="text-[14px]">{section.email}</p>}
+                      {section.links && (
+                        <div className="flex gap-3 mt-1">
+                          {Object.entries(section.links).map(([key, url]) =>
+                            url ? <span key={key} className="text-[13px] text-accent">{key}</span> : null
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                  return null;
+                })}
+              </div>
             )}
           </div>
         )}
