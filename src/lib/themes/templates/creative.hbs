@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{name}}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: #faf8f5; color: #2c2c2c;
+    -webkit-font-smoothing: antialiased; line-height: 1.6;
+  }
+  .container { max-width: 680px; margin: 0 auto; padding: 96px 24px; }
+  h1 { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; font-size: 52px; font-weight: 700; letter-spacing: -2px; line-height: 1.08; }
+  .tagline { font-size: 18px; color: #8a7e72; margin-top: 8px; font-style: italic; }
+  .section-label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 2px; color: #c4956a; margin-bottom: 14px;
+  }
+  .section { margin-top: 56px; }
+  .about-body { font-size: 18px; line-height: 1.8; color: #3d3d3d; }
+  .projects-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  .project-card {
+    border-left: 3px solid #c4956a; background: #fff; border-radius: 0 10px 10px 0;
+    padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .project-card h3 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    font-size: 16px; font-weight: 600; color: #2c2c2c;
+  }
+  .project-card p { font-size: 14px; color: #6b6b6b; margin-top: 6px; line-height: 1.7; }
+  .project-card a { font-size: 13px; color: #c4956a; text-decoration: none; margin-top: 10px; display: inline-block; }
+  .project-card a:hover { text-decoration: underline; }
+  .skills-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .skill-tag {
+    background: #efe8df; border-radius: 9999px;
+    padding: 6px 16px; font-size: 13px; font-weight: 500; color: #6b5d4f;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  }
+  .contact-links { display: flex; flex-wrap: wrap; gap: 20px; }
+  .contact-links a {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    font-size: 14px; color: #c4956a; text-decoration: none;
+  }
+  .contact-links a:hover { text-decoration: underline; }
+  @media (max-width: 640px) {
+    .container { padding: 56px 20px; }
+    h1 { font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>{{name}}</h1>
+  {{#if tagline}}<p class="tagline">{{tagline}}</p>{{/if}}
+
+  {{#each sections}}
+  {{#eq type "about"}}
+  <div class="section">
+    <p class="section-label">About</p>
+    <div class="about-body">{{{sanitizedBody}}}</div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "projects"}}
+  <div class="section">
+    <p class="section-label">Projects</p>
+    <div class="projects-grid">
+      {{#each items}}
+      <div class="project-card">
+        <h3>{{title}}</h3>
+        <p>{{description}}</p>
+        {{#if link}}<a href="{{link}}" target="_blank" rel="noopener">Explore &rsaquo;</a>{{/if}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "skills"}}
+  <div class="section">
+    <p class="section-label">Skills</p>
+    <div class="skills-list">
+      {{#each items}}
+      <span class="skill-tag">{{this}}</span>
+      {{/each}}
+    </div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "contact"}}
+  <div class="section">
+    <p class="section-label">Say hello</p>
+    <div class="contact-links">
+      {{#if email}}<a href="mailto:{{email}}">{{email}}</a>{{/if}}
+      {{#if links.github}}<a href="{{links.github}}" target="_blank" rel="noopener">GitHub</a>{{/if}}
+      {{#if links.linkedin}}<a href="{{links.linkedin}}" target="_blank" rel="noopener">LinkedIn</a>{{/if}}
+      {{#if links.twitter}}<a href="{{links.twitter}}" target="_blank" rel="noopener">Twitter</a>{{/if}}
+      {{#if links.website}}<a href="{{links.website}}" target="_blank" rel="noopener">Website</a>{{/if}}
+    </div>
+  </div>
+  {{/eq}}
+  {{/each}}
+</div>
+</body>
+</html>

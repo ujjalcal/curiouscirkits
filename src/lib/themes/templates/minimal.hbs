@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{name}}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+    background: #fafafa;
+    color: #1d1d1f;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 80px 24px; }
+  h1 { font-size: 48px; font-weight: 700; letter-spacing: -2px; line-height: 1.1; }
+  .tagline { font-size: 17px; color: #6e6e73; margin-top: 6px; }
+  .section-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: #767676; margin-bottom: 12px;
+  }
+  .section { margin-top: 48px; }
+  .about-body { font-size: 17px; line-height: 1.7; color: #1d1d1f; }
+  .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .project-card {
+    border: 1px solid #e8e8ed; background: #fff; border-radius: 10px; padding: 20px;
+  }
+  .project-card h3 { font-size: 15px; font-weight: 600; }
+  .project-card p { font-size: 13px; color: #6e6e73; margin-top: 4px; line-height: 1.6; }
+  .project-card a { font-size: 12px; color: #0066cc; text-decoration: none; margin-top: 8px; display: inline-block; }
+  .project-card a:hover { text-decoration: underline; }
+  .skills-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .skill-tag {
+    border: 1px solid #e8e8ed; background: #fff; border-radius: 9999px;
+    padding: 4px 14px; font-size: 12px; font-weight: 500; color: #6e6e73;
+  }
+  .contact-links { display: flex; flex-wrap: wrap; gap: 16px; }
+  .contact-links a { font-size: 14px; color: #0066cc; text-decoration: none; }
+  .contact-links a:hover { text-decoration: underline; }
+  @media (max-width: 640px) {
+    .container { padding: 48px 20px; }
+    h1 { font-size: 36px; }
+    .projects-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>{{name}}</h1>
+  {{#if tagline}}<p class="tagline">{{tagline}}</p>{{/if}}
+
+  {{#each sections}}
+  {{#eq type "about"}}
+  <div class="section">
+    <p class="section-label">About</p>
+    <div class="about-body">{{{sanitizedBody}}}</div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "projects"}}
+  <div class="section">
+    <p class="section-label">Projects</p>
+    <div class="projects-grid">
+      {{#each items}}
+      <div class="project-card">
+        <h3>{{title}}</h3>
+        <p>{{description}}</p>
+        {{#if link}}<a href="{{link}}" target="_blank" rel="noopener">View project &rsaquo;</a>{{/if}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "skills"}}
+  <div class="section">
+    <p class="section-label">Skills</p>
+    <div class="skills-list">
+      {{#each items}}
+      <span class="skill-tag">{{this}}</span>
+      {{/each}}
+    </div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "contact"}}
+  <div class="section">
+    <p class="section-label">Contact</p>
+    <div class="contact-links">
+      {{#if email}}<a href="mailto:{{email}}">{{email}}</a>{{/if}}
+      {{#if links.github}}<a href="{{links.github}}" target="_blank" rel="noopener">GitHub</a>{{/if}}
+      {{#if links.linkedin}}<a href="{{links.linkedin}}" target="_blank" rel="noopener">LinkedIn</a>{{/if}}
+      {{#if links.twitter}}<a href="{{links.twitter}}" target="_blank" rel="noopener">Twitter</a>{{/if}}
+      {{#if links.website}}<a href="{{links.website}}" target="_blank" rel="noopener">Website</a>{{/if}}
+    </div>
+  </div>
+  {{/eq}}
+  {{/each}}
+</div>
+</body>
+</html>

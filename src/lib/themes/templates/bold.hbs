@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{name}}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+    background: #000; color: #f5f5f7;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 80px 24px; }
+  h1 { font-size: 56px; font-weight: 700; letter-spacing: -2.5px; line-height: 1.05; }
+  .tagline { font-size: 19px; color: rgba(255,255,255,0.5); margin-top: 8px; }
+  .section-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.5px; color: rgba(255,255,255,0.35); margin-bottom: 14px;
+  }
+  .section { margin-top: 56px; }
+  .divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 56px 0; }
+  .about-body { font-size: 17px; line-height: 1.7; color: rgba(255,255,255,0.8); }
+  .projects-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .project-card {
+    border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+    border-radius: 12px; padding: 24px;
+  }
+  .project-card h3 { font-size: 17px; font-weight: 600; color: #f5f5f7; }
+  .project-card p { font-size: 14px; color: rgba(255,255,255,0.55); margin-top: 6px; line-height: 1.6; }
+  .project-card a { font-size: 13px; color: #64d2ff; text-decoration: none; margin-top: 10px; display: inline-block; }
+  .project-card a:hover { text-decoration: underline; }
+  .skills-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .skill-tag {
+    border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06);
+    border-radius: 9999px; padding: 6px 16px; font-size: 13px; font-weight: 500;
+    color: rgba(255,255,255,0.7);
+  }
+  .contact-links { display: flex; flex-wrap: wrap; gap: 20px; }
+  .contact-links a { font-size: 14px; color: #64d2ff; text-decoration: none; }
+  .contact-links a:hover { text-decoration: underline; }
+  @media (max-width: 640px) {
+    .container { padding: 48px 20px; }
+    h1 { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>{{name}}</h1>
+  {{#if tagline}}<p class="tagline">{{tagline}}</p>{{/if}}
+
+  {{#each sections}}
+  {{#eq type "about"}}
+  <hr class="divider">
+  <div class="section" style="margin-top:0">
+    <p class="section-label">About</p>
+    <div class="about-body">{{{sanitizedBody}}}</div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "projects"}}
+  <hr class="divider">
+  <div class="section" style="margin-top:0">
+    <p class="section-label">Projects</p>
+    <div class="projects-grid">
+      {{#each items}}
+      <div class="project-card">
+        <h3>{{title}}</h3>
+        <p>{{description}}</p>
+        {{#if link}}<a href="{{link}}" target="_blank" rel="noopener">View &rsaquo;</a>{{/if}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "skills"}}
+  <hr class="divider">
+  <div class="section" style="margin-top:0">
+    <p class="section-label">Skills</p>
+    <div class="skills-list">
+      {{#each items}}
+      <span class="skill-tag">{{this}}</span>
+      {{/each}}
+    </div>
+  </div>
+  {{/eq}}
+
+  {{#eq type "contact"}}
+  <hr class="divider">
+  <div class="section" style="margin-top:0">
+    <p class="section-label">Get in touch</p>
+    <div class="contact-links">
+      {{#if email}}<a href="mailto:{{email}}">{{email}}</a>{{/if}}
+      {{#if links.github}}<a href="{{links.github}}" target="_blank" rel="noopener">GitHub</a>{{/if}}
+      {{#if links.linkedin}}<a href="{{links.linkedin}}" target="_blank" rel="noopener">LinkedIn</a>{{/if}}
+      {{#if links.twitter}}<a href="{{links.twitter}}" target="_blank" rel="noopener">Twitter</a>{{/if}}
+      {{#if links.website}}<a href="{{links.website}}" target="_blank" rel="noopener">Website</a>{{/if}}
+    </div>
+  </div>
+  {{/eq}}
+  {{/each}}
+</div>
+</body>
+</html>
