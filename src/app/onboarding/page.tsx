@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import type { PortfolioContent } from "@/lib/content-schema";
+import { createClient } from "@/lib/supabase/client";
 
 type Mode = "text" | "answers";
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -350,12 +351,19 @@ export default function OnboardingPage() {
 
             {/* Sign up to save */}
             <button
-              onClick={() => {
+              onClick={async () => {
                 // Store content in localStorage for post-auth recovery
                 localStorage.setItem("cc_draft_content", JSON.stringify(content));
                 localStorage.setItem("cc_draft_subdomain", subdomain);
-                // Redirect to Supabase OAuth
-                window.location.href = `/auth/callback?next=/editor`;
+                // Trigger Google OAuth
+                const supabase = createClient();
+                await supabase.auth.signInWithOAuth({
+                  provider: "google",
+                  options: {
+                    redirectTo:
+                      window.location.origin + "/auth/callback?next=/editor",
+                  },
+                });
               }}
               className="mt-6 w-full rounded-xl bg-foreground py-3.5 text-base font-semibold text-white transition-opacity hover:opacity-85"
             >
