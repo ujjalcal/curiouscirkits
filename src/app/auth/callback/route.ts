@@ -23,9 +23,9 @@ export async function GET(request: Request) {
           .eq("user_id", user.id)
           .single();
 
-        // Redirect to onboarding if no portfolio exists yet
+        // New user with no portfolio — let editor handle localStorage draft
         if (!portfolio) {
-          return NextResponse.redirect(`${origin}/onboarding`);
+          return NextResponse.redirect(`${origin}/editor?new=true`);
         }
       }
 

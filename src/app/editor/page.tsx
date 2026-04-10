@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { PortfolioContent } from "@/lib/content-schema";
+import { createClient } from "@/lib/supabase/client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -10,7 +11,7 @@ import type { PortfolioContent } from "@/lib/content-schema";
 
 type SectionType = "hero" | "about" | "projects" | "skills" | "contact";
 type ThemeId = "minimal" | "bold" | "creative";
-type SaveStatus = "saved" | "saving" | "unsaved";
+type SaveStatus = "saved" | "saving" | "unsaved" | "error";
 
 const SECTIONS: { id: SectionType; label: string }[] = [
   { id: "hero", label: "Hero" },
@@ -378,39 +379,191 @@ export default function EditorPage() {
   const [activeSection, setActiveSection] = useState<SectionType>("hero");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [publishing, setPublishing] = useState(false);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [portfolioId, setPortfolioId] = useState<string | null>(null);
+  const [subdomain, setSubdomain] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loaded = useRef(false);
+  const supabase = useRef(createClient());
 
   // --- Load draft on mount ---
   useEffect(() => {
     if (loaded.current) return;
     loaded.current = true;
 
-    // Check for onboarding draft first
-    const onboardingDraft = localStorage.getItem(ONBOARDING_KEY);
-    if (onboardingDraft) {
-      try {
-        const parsed = JSON.parse(onboardingDraft) as PortfolioContent;
-        setContent(parsed);
-        localStorage.removeItem(ONBOARDING_KEY);
-        return;
-      } catch {
-        // ignore bad data
+    async function loadFromSupabase() {
+      const sb = supabase.current;
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return false;
+
+      // Try to load existing portfolio
+      const { data: portfolio } = await sb
+        .from("portfolios")
+        .select("id, subdomain, content, theme")
+        .eq("user_id", user.id)
+        .single();
+
+      if (portfolio) {
+        setPortfolioId(portfolio.id);
+        setSubdomain(portfolio.subdomain);
+
+        // Load latest version content (prefer version content over portfolio content)
+        const { data: version } = await sb
+          .from("portfolio_versions")
+          .select("content, theme")
+          .eq("portfolio_id", portfolio.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        const src = version ?? portfolio;
+        if (src.content) setContent(src.content as PortfolioContent);
+        if (src.theme) setTheme(src.theme as ThemeId);
+        return true;
+      }
+
+      return false;
+    }
+
+    async function init() {
+      // 1. Try Supabase first
+      const loadedFromDb = await loadFromSupabase().catch(() => false);
+      if (loadedFromDb) return;
+
+      // 2. Check onboarding localStorage draft
+      const onboardingDraft = localStorage.getItem(ONBOARDING_KEY);
+      if (onboardingDraft) {
+        try {
+          const parsed = JSON.parse(onboardingDraft) as PortfolioContent;
+          setContent(parsed);
+          localStorage.removeItem(ONBOARDING_KEY);
+
+          // Persist onboarding draft to Supabase
+          const sb = supabase.current;
+          const { data: { user } } = await sb.auth.getUser();
+          if (user) {
+            const { data: portfolio } = await sb
+              .from("portfolios")
+              .upsert(
+                {
+                  user_id: user.id,
+                  name: parsed.name,
+                  content: parsed,
+                  theme: "minimal",
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "user_id" },
+              )
+              .select("id, subdomain")
+              .single();
+
+            if (portfolio) {
+              setPortfolioId(portfolio.id);
+              setSubdomain(portfolio.subdomain);
+              await sb.from("portfolio_versions").insert({
+                portfolio_id: portfolio.id,
+                content: parsed,
+                theme: "minimal",
+                status: "draft",
+              });
+            }
+          }
+          return;
+        } catch {
+          // ignore bad data
+        }
+      }
+
+      // 3. Fall back to editor localStorage
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const { content: c, theme: t } = JSON.parse(saved);
+          if (c) setContent(c);
+          if (t) setTheme(t);
+        } catch {
+          // ignore
+        }
       }
     }
 
-    // Otherwise load saved editor draft
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const { content: c, theme: t } = JSON.parse(saved);
-        if (c) setContent(c);
-        if (t) setTheme(t);
-      } catch {
-        // ignore
-      }
-    }
+    init();
   }, []);
+
+  // --- Save to Supabase (debounced) ---
+  const saveToSupabase = useCallback(
+    async (nextContent: PortfolioContent, nextTheme: ThemeId) => {
+      const sb = supabase.current;
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) {
+        // No auth — fall back to localStorage only
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ content: nextContent, theme: nextTheme }),
+        );
+        setSaveStatus("saved");
+        return;
+      }
+
+      try {
+        // Upsert portfolio row
+        const { data: portfolio, error: pErr } = await sb
+          .from("portfolios")
+          .upsert(
+            {
+              user_id: user.id,
+              name: nextContent.name,
+              content: nextContent,
+              theme: nextTheme,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id" },
+          )
+          .select("id, subdomain")
+          .single();
+
+        if (pErr || !portfolio) throw pErr;
+
+        setPortfolioId(portfolio.id);
+        setSubdomain(portfolio.subdomain);
+
+        // Upsert a draft version (latest draft row for this portfolio)
+        // Try to update existing draft first
+        const { data: existingDraft } = await sb
+          .from("portfolio_versions")
+          .select("id")
+          .eq("portfolio_id", portfolio.id)
+          .eq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (existingDraft) {
+          await sb
+            .from("portfolio_versions")
+            .update({ content: nextContent, theme: nextTheme })
+            .eq("id", existingDraft.id);
+        } else {
+          await sb.from("portfolio_versions").insert({
+            portfolio_id: portfolio.id,
+            content: nextContent,
+            theme: nextTheme,
+            status: "draft",
+          });
+        }
+
+        // Also keep localStorage as offline cache
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ content: nextContent, theme: nextTheme }),
+        );
+        setSaveStatus("saved");
+      } catch {
+        setSaveStatus("error");
+      }
+    },
+    [],
+  );
 
   // --- Auto-save with debounce ---
   const handleChange = useCallback(
@@ -419,36 +572,39 @@ export default function EditorPage() {
       setSaveStatus("unsaved");
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ content: next, theme }),
-        );
         setSaveStatus("saving");
-        // Simulate tiny delay for visual feedback
-        setTimeout(() => setSaveStatus("saved"), 300);
-      }, 600);
+        saveToSupabase(next, theme);
+      }, 800);
     },
-    [theme],
+    [theme, saveToSupabase],
   );
 
   // Also persist when theme changes
   useEffect(() => {
     if (!loaded.current) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ content, theme }));
-  }, [theme, content]);
+    setSaveStatus("saving");
+    saveToSupabase(content, theme);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
 
   // --- Publish ---
   async function handlePublish() {
     setPublishing(true);
+    setPublishedUrl(null);
     try {
       const res = await fetch("/api/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, theme }),
+        body: JSON.stringify({
+          content,
+          theme,
+          portfolioId,
+          subdomain: subdomain ?? content.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Published! ${data.url}`);
+        setPublishedUrl(data.url);
       } else {
         alert(data.error ?? "Publish failed");
       }
@@ -490,10 +646,44 @@ export default function EditorPage() {
       ? "Saving..."
       : saveStatus === "saved"
         ? "Saved"
-        : "Unsaved";
+        : saveStatus === "error"
+          ? "Save failed"
+          : "Unsaved";
 
   return (
     <div className="flex h-dvh flex-col bg-white text-foreground">
+      {/* --- Published banner --- */}
+      {publishedUrl && (
+        <div className="flex h-10 shrink-0 items-center justify-center gap-3 bg-green-50 text-sm text-green-800">
+          <span>Published!</span>
+          <a
+            href={`https://${publishedUrl}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium underline"
+          >
+            {publishedUrl}
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(`https://${publishedUrl}`);
+            }}
+            className="rounded border border-green-300 bg-white px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-100"
+          >
+            Copy
+          </button>
+          <button
+            type="button"
+            onClick={() => setPublishedUrl(null)}
+            className="ml-1 text-green-500 hover:text-green-700"
+            aria-label="Dismiss"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* --- Top bar --- */}
       <header className="glass-nav flex h-12 shrink-0 items-center justify-between border-b border-border-light px-4 md:px-6">
         <div className="flex items-center gap-3">
@@ -506,7 +696,7 @@ export default function EditorPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-[11px] text-muted">{saveLabel}</span>
+          <span className={`text-[11px] ${saveStatus === "error" ? "text-red-500" : "text-muted"}`}>{saveLabel}</span>
           <button
             type="button"
             onClick={handlePreview}

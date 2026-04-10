@@ -31,9 +31,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { content: rawContent, theme } = body as {
+  const { content: rawContent, theme, portfolioId: reqPortfolioId, subdomain: reqSubdomain } = body as {
     content: unknown;
     theme: string;
+    portfolioId?: string;
+    subdomain?: string;
   };
 
   // --- Validate theme ---
@@ -77,19 +79,26 @@ export async function POST(request: NextRequest) {
   }
 
   // --- Save to DB (MVP: rendered_html column) ---
+  // Derive subdomain: use request value, fall back to name-based slug
+  const derivedSubdomain =
+    reqSubdomain ||
+    content.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
   // Upsert portfolio row first
+  const upsertPayload: Record<string, unknown> = {
+    user_id: user.id,
+    name: content.name,
+    content,
+    theme,
+    subdomain: derivedSubdomain,
+    updated_at: new Date().toISOString(),
+  };
+  // If the client knows the portfolio id, include it so the upsert can match
+  if (reqPortfolioId) upsertPayload.id = reqPortfolioId;
+
   const { data: portfolio, error: portfolioError } = await supabase
     .from("portfolios")
-    .upsert(
-      {
-        user_id: user.id,
-        name: content.name,
-        content,
-        theme,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    )
+    .upsert(upsertPayload, { onConflict: "user_id" })
     .select("id, subdomain")
     .single();
 
@@ -100,7 +109,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Insert a version with rendered HTML
+  // Insert a published version with rendered HTML
   const { error: versionError } = await supabase
     .from("portfolio_versions")
     .insert({
@@ -108,6 +117,7 @@ export async function POST(request: NextRequest) {
       rendered_html: html,
       theme,
       content,
+      status: "published",
       published_at: new Date().toISOString(),
     });
 
@@ -118,7 +128,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const subdomain = portfolio.subdomain ?? content.name.toLowerCase().replace(/\s+/g, "-");
+  const subdomain = portfolio.subdomain ?? derivedSubdomain;
 
   return NextResponse.json({
     success: true,
