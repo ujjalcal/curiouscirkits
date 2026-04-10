@@ -28,11 +28,7 @@ export async function saveDraftFromLocalStorage(): Promise<string | null> {
   } = await supabase.auth.getUser();
   if (userError || !user) throw new Error("Not authenticated");
 
-  // Ensure public.users row exists (trigger may not have fired)
-  await supabase.from("users").upsert(
-    { id: user.id, email: user.email!, display_name: user.user_metadata?.full_name || user.email },
-    { onConflict: "id" }
-  );
+  // users row created by auth callback (server-side)
 
   // Create portfolio row
   const { data: portfolio, error: portfolioError } = await supabase

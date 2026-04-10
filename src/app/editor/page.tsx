@@ -409,7 +409,7 @@ export default function EditorPage() {
         .eq("user_id", user.id)
         .is("deleted_at", null)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (portfolio) {
         setPortfolioId(portfolio.id);
@@ -422,7 +422,7 @@ export default function EditorPage() {
           .eq("portfolio_id", portfolio.id)
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (version) {
           if (version.content) setContent(version.content as PortfolioContent);
@@ -451,11 +451,7 @@ export default function EditorPage() {
           const sb = getSupabase();
           const { data: { user } } = await sb.auth.getUser();
           if (user) {
-            // Ensure users row exists
-            await sb.from("users").upsert(
-              { id: user.id, email: user.email!, display_name: user.user_metadata?.full_name || user.email },
-              { onConflict: "id" }
-            );
+            // users row created by auth callback (server-side)
 
             const draftSubdomain = localStorage.getItem("cc_draft_subdomain") || parsed.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 20);
 
@@ -530,7 +526,7 @@ export default function EditorPage() {
             .eq("user_id", user.id)
             .is("deleted_at", null)
             .limit(1)
-            .single();
+            .maybeSingle();
 
           if (existing) {
             pid = existing.id;
@@ -561,7 +557,7 @@ export default function EditorPage() {
           .eq("status", "draft")
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (existingDraft) {
           await sb
