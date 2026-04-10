@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { PortfolioContent } from "@/lib/content-schema";
@@ -384,7 +386,11 @@ export default function EditorPage() {
   const [subdomain, setSubdomain] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loaded = useRef(false);
-  const supabase = useRef(createClient());
+  const supabase = useRef<ReturnType<typeof createClient> | null>(null);
+  function getSupabase() {
+    if (!supabase.current) supabase.current = createClient();
+    return supabase.current;
+  }
 
   // --- Load draft on mount ---
   useEffect(() => {
@@ -392,7 +398,7 @@ export default function EditorPage() {
     loaded.current = true;
 
     async function loadFromSupabase() {
-      const sb = supabase.current;
+      const sb = getSupabase();
       const { data: { user } } = await sb.auth.getUser();
       if (!user) return false;
 
@@ -439,7 +445,7 @@ export default function EditorPage() {
           localStorage.removeItem(ONBOARDING_KEY);
 
           // Persist onboarding draft to Supabase
-          const sb = supabase.current;
+          const sb = getSupabase();
           const { data: { user } } = await sb.auth.getUser();
           if (user) {
             const { data: portfolio } = await sb
@@ -493,7 +499,7 @@ export default function EditorPage() {
   // --- Save to Supabase (debounced) ---
   const saveToSupabase = useCallback(
     async (nextContent: PortfolioContent, nextTheme: ThemeId) => {
-      const sb = supabase.current;
+      const sb = getSupabase();
       const { data: { user } } = await sb.auth.getUser();
       if (!user) {
         // No auth — fall back to localStorage only
