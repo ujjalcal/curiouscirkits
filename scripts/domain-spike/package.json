@@ -1,0 +1,16 @@
+{
+  "name": "domain-spike",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "spike": "tsx spike.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-route-53": "^3.750.0",
+    "@aws-sdk/client-route-53-domains": "^3.750.0",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 
-function Nav() {
+async function Nav() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <nav className="glass-nav sticky top-0 z-50 border-b border-border-light">
       <div className="mx-auto flex h-12 max-w-[980px] items-center justify-between px-6">
@@ -14,12 +18,37 @@ function Nav() {
           <a href="#pricing" className="text-xs text-muted hover:text-foreground transition-colors">
             Pricing
           </a>
-          <Link
-            href="/onboarding"
-            className="rounded-full bg-foreground px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-85"
-          >
-            Get started
-          </Link>
+          {user ? (
+            <>
+              <Link
+                href="/editor"
+                className="text-xs text-muted hover:text-foreground transition-colors"
+              >
+                My portfolio
+              </Link>
+              <a
+                href="/auth/logout"
+                className="text-xs text-muted hover:text-foreground transition-colors"
+              >
+                Sign out
+              </a>
+            </>
+          ) : (
+            <>
+              <a
+                href="/auth/login"
+                className="text-xs text-muted hover:text-foreground transition-colors"
+              >
+                Sign in
+              </a>
+              <Link
+                href="/onboarding"
+                className="rounded-full bg-foreground px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-85"
+              >
+                Get started
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>
