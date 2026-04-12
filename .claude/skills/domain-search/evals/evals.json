@@ -1,0 +1,92 @@
+{
+  "skill_name": "domain-search",
+  "evals": [
+    {
+      "id": 1,
+      "name": "asks-purpose-first",
+      "prompt": "search for a domain",
+      "expected_output": "Asks 'What are you building this portfolio for?' before searching. Does NOT jump straight to running the search script.",
+      "assertions": [
+        {"text": "Asks about purpose/goal before searching", "type": "behavioral"},
+        {"text": "Does NOT run search.sh or aws commands yet", "type": "behavioral"},
+        {"text": "Uses AskUserQuestion with options", "type": "behavioral"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "skips-questions-when-context-clear",
+      "prompt": "search for reyanmakes under $10",
+      "expected_output": "Skips name and budget questions since both are provided. May still ask purpose, then searches with --budget 10.",
+      "assertions": [
+        {"text": "Does NOT ask 'What name do you want?'", "type": "behavioral"},
+        {"text": "Does NOT ask about budget", "type": "behavioral"},
+        {"text": "Uses name 'reyanmakes' from the prompt", "type": "behavioral"},
+        {"text": "Uses --budget 10 flag when searching", "type": "behavioral"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "brainstorms-when-unsure",
+      "prompt": "I need a domain for my portfolio but I don't know what name to use. I'm a data scientist named Sarah Chen.",
+      "expected_output": "Suggests 5-8 name options based on the user's name and role. Includes variations like sarahchen, sarah-chen, chen-data, sarahchendata, etc.",
+      "assertions": [
+        {"text": "Suggests multiple name options (at least 5)", "type": "behavioral"},
+        {"text": "Uses the user's actual name (sarah, chen)", "type": "behavioral"},
+        {"text": "Does NOT assume a name from git config", "type": "behavioral"},
+        {"text": "Includes different styles (full name, short, role-based)", "type": "behavioral"}
+      ]
+    },
+    {
+      "id": 4,
+      "name": "recommends-based-on-purpose",
+      "prompt": "I'm building a portfolio for college applications. Search for reyanmakes.",
+      "expected_output": "After showing results, recommends .com as most professional for college apps. If .com is taken, suggests .me as alternative.",
+      "assertions": [
+        {"text": "Recommendation mentions college/professional context", "type": "behavioral"},
+        {"text": "Recommends .com if available", "type": "behavioral"},
+        {"text": "Runs the search script", "type": "behavioral"}
+      ]
+    },
+    {
+      "id": 5,
+      "name": "suggests-variations-when-com-taken",
+      "prompt": "search for google under $20",
+      "expected_output": "Shows google.com as TAKEN. Suggests name variations (my-google, thegoogle, google-dev, etc.) or offers to search different names entirely.",
+      "assertions": [
+        {"text": "Shows google.com as taken", "type": "behavioral"},
+        {"text": "Suggests alternative names or variations", "type": "behavioral"}
+      ]
+    },
+    {
+      "id": 6,
+      "name": "handles-budget-cheapest",
+      "prompt": "I just want the cheapest domain possible for testing. Name: testproject123",
+      "expected_output": "Searches with --budget 5 or shows only .click ($3) and .link ($5). Recommends .click as cheapest.",
+      "assertions": [
+        {"text": "Shows cheapest options (.click, .link)", "type": "behavioral"},
+        {"text": "Recommends the cheapest available", "type": "behavioral"},
+        {"text": "Does NOT show expensive TLDs in main results", "type": "behavioral"}
+      ]
+    },
+    {
+      "id": 7,
+      "name": "never-assumes-name",
+      "prompt": "find me a domain",
+      "expected_output": "Asks the user what name they want. Does NOT use the user's git username, email, or system info as the domain name.",
+      "assertions": [
+        {"text": "Asks user for the name", "type": "behavioral"},
+        {"text": "Does NOT pre-fill a name from system context", "type": "behavioral"}
+      ]
+    },
+    {
+      "id": 8,
+      "name": "hands-off-to-purchase",
+      "prompt": "I want avikdebnath.com",
+      "expected_output": "After confirming availability, tells user to run /domain-purchase to register. Does NOT register the domain itself.",
+      "assertions": [
+        {"text": "Mentions /domain-purchase as next step", "type": "behavioral"},
+        {"text": "Does NOT call aws route53domains register-domain", "type": "behavioral"}
+      ]
+    }
+  ]
+}
